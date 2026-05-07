@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Manager Studio Pro v2</title>
+    <!-- Font Awesome 6 (free) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Fo3rlrQkTyG6l6jF3e6+5rKf3J4zWg7U4p5L2F5r5z5o5f5c5f5c5f5c5f5c5f5c5f5c5f5c5f5c5f5c5f5c5f5c5f5c5" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- highlight.js (server-side or client-side) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+    <!-- Google Fonts (optional) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <!-- Project styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Inline fallback / minimal reset – real styles in static/style.css */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; transition: background 0.3s, color 0.3s; }
+        /* Theme variables */
+        [data-theme="light"] { --bg: #f9fafb; --text: #1f2937; --sidebar-bg: #ffffff; --main-bg: #ffffff; --border: #e5e7eb; --accent: #3b82f6; }
+        [data-theme="dark"] { --bg: #111827; --text: #f3f4f6; --sidebar-bg: #1f2937; --main-bg: #1f2937; --border: #374151; --accent: #60a5fa; }
+        body { background: var(--bg); color: var(--text); }
+        .app-container { display: flex; height: 100vh; }
+        /* Sidebar */
+        .sidebar { width: 280px; background: var(--sidebar-bg); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 1.25rem; gap: 1rem; }
+        .sidebar-header { display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-header h1 { font-size: 1.1rem; font-weight: 700; }
+        .new-project-btn { display: flex; align-items: center; gap: 0.5rem; background: var(--accent); color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 500; cursor: pointer; transition: filter 0.2s; }
+        .new-project-btn:hover { filter: brightness(1.1); }
+        .search-box { display: flex; align-items: center; background: var(--bg); border-radius: 8px; padding: 0.5rem; border: 1px solid var(--border); }
+        .search-box i { color: #9ca3af; margin-right: 0.4rem; }
+        .search-box input { border: none; background: transparent; color: var(--text); width: 100%; outline: none; font-size: 0.9rem; }
+        .session-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
+        .session-item { background: var(--bg); border-radius: 8px; padding: 0.75rem; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s; }
+        .session-item:hover { border-color: var(--accent); }
+        .session-item.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+        .session-item .session-title { font-weight: 600; font-size: 0.95rem; }
+        .session-item .session-meta { font-size: 0.75rem; color: #9ca3af; margin-top: 0.2rem; }
+        .sidebar-footer { border-top: 1px solid var(--border); padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center; }
+        .theme-toggle { background: none; border: none; color: var(--text); font-size: 1.2rem; cursor: pointer; }
+        /* Main area */
+        .main-content { flex: 1; padding: 2rem; overflow-y: auto; background: var(--main-bg); }
+        .wizard-steps { display: flex; justify-content: space-between; margin-bottom: 2rem; }
+        .step { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; cursor: pointer; opacity: 0.5; }
+        .step.active { opacity: 1; }
+        .step .step-icon { width: 40px; height: 40px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        .step.active .step-icon { background: var(--accent); color: #fff; }
+        .step .step-label { font-size: 0.8rem; font-weight: 500; }
+        /* Wizard content panels */
+        .wizard-content { display: none; }
+        .wizard-content.active { display: block; }
+        .card { background: var(--bg); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--border); }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.4rem; font-weight: 500; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 0.6rem; border: 1px solid var(--border); border-radius: 6px; background: var(--main-bg); color: var(--text); font-size: 0.9rem; }
+        .btn-primary { background: var(--accent); color: #fff; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; font-weight: 500; cursor: pointer; }
+        .btn-secondary { background: transparent; border: 1px solid var(--border); padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; color: var(--text); }
+        /* Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-overlay.open { display: flex; }
+        .modal { background: var(--main-bg); border-radius: 12px; width: 90%; max-width: 600px; padding: 2rem; border: 1px solid var(--border); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text); }
+        /* Code blocks with highlight.js */
+        pre code { border-radius: 6px; font-size: 0.9rem; }
+        /* Utility */
+        .flex { display: flex; }
+        .gap-2 { gap: 0.5rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .text-sm { font-size: 0.875rem; }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1><i class="fas fa-robot"></i> AI Code Manager</h1>
+            <button class="new-project-btn" id="newProjectBtn"><i class="fas fa-plus"></i> New</button>
+        </div>
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="sessionSearch" placeholder="Search sessions..." />
+        </div>
+        <div class="session-list" id="sessionList">
+            <!-- Sessions rendered by JS or Jinja -->
+            {% if sessions %}
+                {% for session in sessions %}
+                <div class="session-item" data-session-id="{{ session.id }}">
+                    <div class="session-title">{{ session.title }}</div>
+                    <div class="session-meta">{{ session.updated_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="session-item" style="opacity:0.6; cursor:default;">No sessions yet</div>
+            {% endif %}
+        </div>
+        <div class="sidebar-footer">
+            <span class="text-sm" id="userInfo">{{ current_user.username if current_user else 'Guest' }}</span>
+            <button class="theme-toggle" id="themeToggle"><i class="fas fa-moon"></i></button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <!-- Wizard Steps -->
+        <div class="wizard-steps">
+            <div class="step active" data-step="1"><span class="step-icon"><i class="fas fa-pen"></i></span><span class="step-label">Input</span></div>
+            <div class="step" data-step="2"><span class="step-icon"><i class="fas fa-project-diagram"></i></span><span class="step-label">Plan</span></div>
+            <div class="step" data-step="3"><span class="step-icon"><i class="fas fa-code"></i></span><span class="step-label">Generate</span></div>
+            <div class="step" data-step="4"><span class="step-icon"><i class="fas fa-cloud-upload-alt"></i></span><span class="step-label">Push</span></div>
+        </div>
+
+        <!-- Step 1: Input -->
+        <div class="wizard-content active" id="step1">
+            <div class="card">
+                <h2 class="mb-2">Project Input</h2>
+                <div class="form-group">
+                    <label for="projectName">Project Name</label>
+                    <input type="text" id="projectName" placeholder="e.g. My Awesome App" value="{{ project_name }}" />
+                </div>
+                <div class="form-group">
+                    <label for="projectDescription">Description / Requirements</label>
+                    <textarea id="projectDescription" rows="6" placeholder="Describe what you want to build...">{{ project_description }}</textarea>
+                </div>
+                <div class="flex gap-2">
+                    <button class="btn-primary" id="generatePlanBtn"><i class="fas fa-magic"></i> Generate Plan</button>
+                    <button class="btn-secondary" id="clearInputBtn">Clear</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Plan -->
+        <div class="wizard-content" id="step2">
+            <div class="card">
+                <h2 class="mb-2">Project Plan</h2>
+                <div id="planContent" class="mb-2">
+                    {% if plan %}
+                        <pre><code class="language-markdown">{{ plan }}</code></pre>
+                    {% else %}
+                        <p class="text-sm" style="color:#9ca3af;">No plan generated yet. Click "Generate Plan" in the Input step.</p>
+                    {% endif %}
+                </div>
+                <div class="flex gap-2">
+                    <button class="btn-primary" id="acceptPlanBtn"><i class="fas fa-check"></i> Accept & Generate Code</button>
+                    <button class="btn-secondary" id="editPlanBtn"><i class="fas fa-edit"></i> Edit</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Generate -->
+        <div class="wizard-content" id="step3">
+            <div class="card">
+                <h2 class="mb-2">Generated Code</h2>
+                <div id="codeContent" class="mb-2">
+                    {% if code %}
+                        <pre><code class="language-python">{{ code }}</code></pre>
+                    {% else %}
+                        <p class="text-sm" style="color:#9ca3af;">Code will appear here after generation.</p>
+                    {% endif %}
+                </div>
+                <div class="flex gap-2">
+                    <button class="btn-primary" id="pushBtn"><i class="fas fa-cloud-upload-alt"></i> Push to GitHub</button>
+                    <button class="btn-secondary" id="downloadZipBtn"><i class="fas fa-file-archive"></i> Download ZIP</button>
+                    <button class="btn-secondary" id="editCodeBtn"><i class="fas fa-edit"></i> Edit</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Push -->
+        <div class="wizard-content" id="step4">
+            <div class="card">
+                <h2 class="mb-2">GitHub Push</h2>
+                <div class="form-group">
+                    <label for="repoUrl">Repository URL</label>
+                    <input type="text" id="repoUrl" placeholder="https://github.com/user/repo.git" value="{{ repo_url }}" />
+                </div>
+                <div class="form-group">
+                    <label for="branchName">Branch</label>
+                    <input type="text" id="branchName" placeholder="main" value="{{ branch }}" />
+                </div>
+                <div class="form-group">
+                    <label for="commitMessage">Commit Message</label>
+                    <textarea id="commitMessage" rows="3" placeholder="Initial commit from AI Code Manager">{{ commit_message }}</textarea>
+                </div>
+                <div class="flex gap-2">
+                    <button class="btn-primary" id="confirmPushBtn"><i class="fas fa-cloud-upload-alt"></i> Push Now</button>
+                    <button class="btn-secondary" id="resetPushBtn">Reset</button>
+                </div>
+                <div id="pushStatus" class="mt-2 text-sm"></div>
+            </div>
+        </div>
+
+        <!-- SSE activity indicator -->
+        <div id="sseIndicator" class="text-sm" style="display:none; margin-top:1rem; padding:0.5rem; background:var(--accent); color:#fff; border-radius:6px;">
+            <i class="fas fa-spinner fa-pulse"></i> Processing...
+        </div>
+    </main>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 id="modalTitle">Edit</h3>
+            <button class="modal-close" id="modalCloseBtn">&times;</button>
+        </div>
+        <div id="modalBody">
+            <textarea id="modalTextarea" rows="15" style="width:100%; padding:0.6rem; border:1px solid var(--border); border-radius:6px; background:var(--main-bg); color:var(--text); font-family:monospace;"></textarea>
+        </div>
+        <div class="flex gap-2" style="margin-top:1rem; justify-content:flex-end;">
+            <button class="btn-secondary" id="modalCancelBtn">Cancel</button>
+            <button class="btn-primary" id="modalSaveBtn">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+<script>
+    // Inline fallback for static script loading – real logic in static/script.js
+    // This ensures basic functionality even if static file fails.
+    document.addEventListener('DOMContentLoaded', function() {
+        // Highlight existing code blocks
+        hljs.highlightAll();
+
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', currentTheme);
+        themeToggle.innerHTML = currentTheme === 'light' ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+        themeToggle.addEventListener('click', function() {
+            const theme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            themeToggle.innerHTML = theme === 'light' ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+        });
+
+        // Wizard step navigation (simple progress)
+        const steps = document.querySelectorAll('.wizard-steps .step');
+        const contents = document.querySelectorAll('.wizard-content');
+        function activateStep(index) {
+            steps.forEach((s, i) => s.classList.toggle('active', i === index));
+            contents.forEach((c, i) => c.classList.toggle('active', i === index));
+        }
+        // Placeholder: you can add event handlers for "Next" buttons if needed
+        // For now, just link via buttons in steps (advanced logic in static/script.js)
+    });
+</script>
+</body>
+</html>
